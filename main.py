@@ -18,7 +18,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# app.add_middleware(Analytics, api_key=os.getenv("ANALYTICS_API_KEY"))
+app.add_middleware(Analytics, api_key=os.getenv("ANALYTICS_API_KEY"))
 
 load_dotenv()
 
