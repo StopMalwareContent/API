@@ -1,10 +1,10 @@
-import os
+import os, requests, json
 from datetime import timedelta, datetime
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from authx import AuthX, AuthXConfig
-from models.site import IllegalSite
-from config.database import collection_name
+from models.site import IllegalSite, ReportedIllegalSite
+from config.database import sites_collection, reports_collection
 from schema.schemas import site_entities
 from dotenv import load_dotenv
 from api_analytics.fastapi import Analytics
@@ -18,7 +18,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(Analytics, api_key=os.getenv("ANALYTICS_API_KEY"))
+# app.add_middleware(Analytics, api_key=os.getenv("ANALYTICS_API_KEY"))
 
 load_dotenv()
 
@@ -53,34 +53,87 @@ def login(username: str, password: str):
 
 @app.get("/sites")
 async def get_sites() -> list[IllegalSite]:
-  sites = site_entities(collection_name.find())
+  sites = site_entities(sites_collection.find())
   return sites
 
 
 @app.get("/sites/{domain}")
 async def get_site(domain) -> list[IllegalSite]:
-  site = site_entities(collection_name.find({"domain": domain}))
+  site = site_entities(sites_collection.find({"domain": domain}))
   return site
 
 
 @app.post("/sites", dependencies=[Depends(auth.access_token_required)])
 async def post_site(site: IllegalSite):
-  collection_name.insert_one(dict(site))
+  sites_collection.insert_one(dict(site))
 
 
 @app.put("/sites/{domain}", dependencies=[Depends(auth.access_token_required)])
 async def put_site(domain: str, site: IllegalSite):
-  collection_name.find_one_and_update({"domain": domain}, {"$set": dict(site)})
+  sites_collection.find_one_and_update({"domain": domain}, {"$set": dict(site)})
 
 
 @app.delete("/sites/{domain}", dependencies=[Depends(auth.access_token_required)])
 async def delete_site(domain: str):
-  collection_name.find_one_and_delete({"domain": domain})
+  sites_collection.find_one_and_delete({"domain": domain})
 
+
+@app.get("/reports")
+async def get_reports() -> list[IllegalSite]:
+  sites = site_entities(reports_collection.find())
+  return sites
+
+
+@app.get("/reports/{domain}")
+async def get_report(domain) -> list[IllegalSite]:
+  site = site_entities(reports_collection.find({"domain": domain}))
+  return site
+
+
+@app.delete("/reports/{domain}", dependencies=[Depends(auth.access_token_required)])
+async def delete_report(domain: str):
+  reports_collection.find_one_and_delete({"domain": domain})
+
+
+@app.post("/reports")
+async def post_report(site: ReportedIllegalSite):
+  r = requests.post("https://challenges.cloudflare.com/turnstile/v0/siteverify", data={
+    "secret": os.getenv("TURNSTILE_SECRET_KEY"),
+    "response": site.token
+  })
+
+  if json.loads(r.text)["success"]:
+    site_dict = dict(site)
+    site_dict.pop('token', None)
+
+    if not reports_collection.find_one({"domain": site.domain}):
+
+      match site_dict["reason"]:
+        case "illegal-redistribution":
+          hr_reason = "Illegal redistribution"
+        case "phishing":
+          hr_reason = "Phishing website"
+        case "malware":
+          hr_reason = "Contains malware"
+        case "puw":
+          hr_reason = "Potentially unwanted website"
+        case "false-pos":
+          hr_reason = "False positive"
+        case _:
+          raise HTTPException(400, "Invalid reason")
+
+      site_dict["reason"] = hr_reason
+      reports_collection.insert_one(site_dict)
+    else:
+      raise HTTPException(409, "Report already exists")
+  else:
+    raise HTTPException(400, "Invalid captcha")
 
 @app.get("/stats")
 async def get_stats():
-  sites = site_entities(collection_name.find())
+  sites = site_entities(sites_collection.find())
+  reports = site_entities(reports_collection.find())
   return {
-    "sites": len(list(sites))
+    "sites": len(list(sites)),
+    "reports": len(list(reports))
   }

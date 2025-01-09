@@ -6,3 +6,11 @@ class IllegalSite(BaseModel):
   notes: str
   path: str
   reason: str
+
+
+class ReportedIllegalSite(BaseModel):
+  domain: str
+  notes: str
+  path: str
+  reason: str
+  token: str
