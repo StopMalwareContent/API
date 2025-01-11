@@ -70,7 +70,7 @@ async def post_site(site: IllegalSite):
   sites_collection.insert_one(site_dict)
 
   requests.post(os.getenv("VERDICTS_DISCORD_WEBHOOK_URL"), json={
-    "content": f"<:smc_flag:1327674316233379840> **A new website has been flagged**\n\nDomain: *{site_dict.get('domain')}*\Reason: *{site_dict.get('reason')}*"
+    "content": f"<:smc_flag:1327674316233379840> **New website has been flagged**\n\nDomain: *{site_dict.get('domain')}*\nReason: *{site_dict.get('reason')}*"
   })
 
 
@@ -136,7 +136,7 @@ async def post_report(site: ReportedIllegalSite):
       reports_collection.insert_one(site_dict)
 
       requests.post(os.getenv("REPORTS_DISCORD_WEBHOOK_URL"), json={
-        "content": f"<:smc_bell:1327674323007307858> **A new website has been reported**\n\nDomain: *{site_dict.get('domain')}*\nReason: *{site_dict.get('reason')}*"
+        "content": f"<:smc_bell:1327674323007307858> **New website has been reported**\n\nDomain: *{site_dict.get('domain')}*\nReason: *{site_dict.get('reason')}*"
       })
     else:
       raise HTTPException(409, "Report already exists")
