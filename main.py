@@ -67,6 +67,10 @@ async def get_site(domain) -> list[IllegalSite]:
 async def post_site(site: IllegalSite):
   sites_collection.insert_one(dict(site))
 
+  requests.post(os.getenv("VERDICTS_DISCORD_WEBHOOK_URL"), json={
+    "content": f"<:smc_flag:1327674316233379840> **A new website has been flagged**\n\nDomain: *{site.get('domain')}*\Reason: *{site.get('reason')}*"
+  })
+
 
 @app.put("/sites/{domain}", dependencies=[Depends(auth.access_token_required)])
 async def put_site(domain: str, site: IllegalSite):
@@ -76,6 +80,10 @@ async def put_site(domain: str, site: IllegalSite):
 @app.delete("/sites/{domain}", dependencies=[Depends(auth.access_token_required)])
 async def delete_site(domain: str):
   sites_collection.find_one_and_delete({"domain": domain})
+
+  requests.post(os.getenv("VERDICTS_DISCORD_WEBHOOK_URL"), json={
+    "content": f"<:smc_unflag:1327676379331825745> **Website has been unflagged**\n\nDomain: *{domain}*"
+  })
 
 
 @app.get("/reports")
@@ -125,8 +133,8 @@ async def post_report(site: ReportedIllegalSite):
       site_dict["reason"] = hr_reason
       reports_collection.insert_one(site_dict)
 
-      requests.post(os.getenv("DISCORD_WEBHOOK_URL"), json={
-        "content": f"**A new website has been reported!**\n\nDomain: *{site_dict.get('domain')}*\nReason: *{site_dict.get('reason')}*"
+      requests.post(os.getenv("REPORTS_DISCORD_WEBHOOK_URL"), json={
+        "content": f"<:smc_bell:1327674323007307858> **A new website has been reported**\n\nDomain: *{site_dict.get('domain')}*\nReason: *{site_dict.get('reason')}*"
       })
     else:
       raise HTTPException(409, "Report already exists")
