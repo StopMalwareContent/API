@@ -65,10 +65,12 @@ async def get_site(domain) -> list[IllegalSite]:
 
 @app.post("/sites", dependencies=[Depends(auth.access_token_required)])
 async def post_site(site: IllegalSite):
-  sites_collection.insert_one(dict(site))
+  site_dict = dict(site)
+  
+  sites_collection.insert_one(site_dict)
 
   requests.post(os.getenv("VERDICTS_DISCORD_WEBHOOK_URL"), json={
-    "content": f"<:smc_flag:1327674316233379840> **A new website has been flagged**\n\nDomain: *{site.get('domain')}*\Reason: *{site.get('reason')}*"
+    "content": f"<:smc_flag:1327674316233379840> **A new website has been flagged**\n\nDomain: *{site_dict.get('domain')}*\Reason: *{site_dict.get('reason')}*"
   })
 
 
