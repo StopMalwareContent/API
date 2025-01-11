@@ -124,6 +124,10 @@ async def post_report(site: ReportedIllegalSite):
 
       site_dict["reason"] = hr_reason
       reports_collection.insert_one(site_dict)
+
+      requests.post(os.getenv("DISCORD_WEBHOOK_URL"), json={
+        "content": f"**A new website has been reported!**\n\nDomain: *{site_dict.get('domain')}*\nReason: *{site_dict.get('reason')}*"
+      })
     else:
       raise HTTPException(409, "Report already exists")
   else:
