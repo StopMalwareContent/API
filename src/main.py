@@ -1,4 +1,7 @@
-import os, requests, json
+import requests
+import json
+import env
+import highlight_io
 from datetime import timedelta, datetime
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,42 +9,59 @@ from authx import AuthX, AuthXConfig
 from models.site import IllegalSite, ReportedIllegalSite
 from config.database import sites_collection, reports_collection
 from schema.schemas import site_entities
-from dotenv import load_dotenv
-from api_analytics.fastapi import Analytics
+from highlight_io.integrations.fastapi import FastAPIMiddleware
 
-app = FastAPI(title="StopMalwareContent API", description="The official API for StopMalwareContent Extension.", version="2.0")
+app = FastAPI(
+  title="StopMalwareContent API",
+  description="The official API for StopMalwareContent Extension.",
+  version="2.1",
+)
+
+H = highlight_io.H(
+  env.HIGHLIGHT_PROJECT_ID,
+  instrument_logging=True,
+  service_name="my-app",
+  service_version="git-sha",
+  environment="production",
+)
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+  CORSMiddleware,
+  allow_origins=["*"],
+  allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"],
 )
-app.add_middleware(Analytics, api_key=os.getenv("ANALYTICS_API_KEY"))
-
-load_dotenv()
+app.add_middleware(FastAPIMiddleware)
 
 config = AuthXConfig(
-     JWT_ALGORITHM = "HS256",
-     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY"),
-     JWT_TOKEN_LOCATION = ["headers"],
+  JWT_ALGORITHM="HS256",
+  JWT_SECRET_KEY=env.JWT_SECRET_KEY,
+  JWT_TOKEN_LOCATION=["headers"],
 )
 
 auth = AuthX(config=config)
 auth.handle_errors(app)
 
+REASON_MAP = {
+  "illegal-redistribution": "Illegal redistribution",
+  "false-pos": "False positive",
+  "phishing": "Phishing website",
+  "malware": "Contains malware",
+  "puw": "Potentially unwanted website",
+}
 
-@app.get('/')
+
+@app.get("/")
 def root():
   return {
     "message": "If you are reading this, StopMalwareContent API is alive.",
   }
 
 
-@app.get('/login')
+@app.get("/login")
 def login(username: str, password: str):
-  if username == os.getenv("MASTER_USER") and password == os.getenv("MASTER_PASSWORD"):
+  if username == env.MASTER_USER and password == env.MASTER_PASSWORD:
     current_time = datetime.now()
 
     time_in_24hours = current_time + timedelta(seconds=24 * 60 * 60)
@@ -66,12 +86,15 @@ async def get_site(domain) -> list[IllegalSite]:
 @app.post("/sites", dependencies=[Depends(auth.access_token_required)])
 async def post_site(site: IllegalSite):
   site_dict = dict(site)
-  
+
   sites_collection.insert_one(site_dict)
 
-  requests.post(os.getenv("VERDICTS_DISCORD_WEBHOOK_URL"), json={
-    "content": f"<:smc_flag:1327674316233379840> **New website has been flagged**\n\nDomain: *{site_dict.get('domain')}*\nReason: *{site_dict.get('reason')}*"
-  })
+  requests.post(
+    env.VERDICTS_DISCORD_WEBHOOK_URL,
+    json={
+      "content": f"<:smc_flag:1327674316233379840> **New website has been flagged**\n\nDomain: *{site_dict.get('domain')}*\nReason: *{site_dict.get('reason')}*"
+    },
+  )
 
 
 @app.put("/sites/{domain}", dependencies=[Depends(auth.access_token_required)])
@@ -83,9 +106,12 @@ async def put_site(domain: str, site: IllegalSite):
 async def delete_site(domain: str):
   sites_collection.find_one_and_delete({"domain": domain})
 
-  requests.post(os.getenv("VERDICTS_DISCORD_WEBHOOK_URL"), json={
-    "content": f"<:smc_unflag:1327676379331825745> **Website has been unflagged**\n\nDomain: *{domain}*"
-  })
+  requests.post(
+    env.VERDICTS_DISCORD_WEBHOOK_URL,
+    json={
+      "content": f"<:smc_unflag:1327676379331825745> **Website has been unflagged**\n\nDomain: *{domain}*"
+    },
+  )
 
 
 @app.get("/reports")
@@ -107,47 +133,39 @@ async def delete_report(domain: str):
 
 @app.post("/reports")
 async def post_report(site: ReportedIllegalSite):
-  r = requests.post("https://challenges.cloudflare.com/turnstile/v0/siteverify", data={
-    "secret": os.getenv("TURNSTILE_SECRET_KEY"),
-    "response": site.token
-  })
+  r = requests.post(
+    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    data={"secret": env.TURNSTILE_SECRET_KEY, "response": site.token},
+  )
 
   if json.loads(r.text)["success"]:
     site_dict = dict(site)
-    site_dict.pop('token', None)
+    site_dict.pop("token", None)
 
     if not reports_collection.find_one({"domain": site.domain}):
+      reason = site_dict["reason"]
+      hr_reason = REASON_MAP.get(reason)
 
-      match site_dict["reason"]:
-        case "illegal-redistribution":
-          hr_reason = "Illegal redistribution"
-        case "phishing":
-          hr_reason = "Phishing website"
-        case "malware":
-          hr_reason = "Contains malware"
-        case "puw":
-          hr_reason = "Potentially unwanted website"
-        case "false-pos":
-          hr_reason = "False positive"
-        case _:
-          raise HTTPException(400, "Invalid reason")
+      if not hr_reason:
+        raise HTTPException(400, "Invalid reason")
 
       site_dict["reason"] = hr_reason
       reports_collection.insert_one(site_dict)
 
-      requests.post(os.getenv("REPORTS_DISCORD_WEBHOOK_URL"), json={
-        "content": f"<:smc_bell:1327674323007307858> **New website has been reported**\n\nDomain: *{site_dict.get('domain')}*\nReason: *{site_dict.get('reason')}*"
-      })
+      requests.post(
+        env.REPORTS_DISCORD_WEBHOOK_URL,
+        json={
+          "content": f"<:smc_bell:1327674323007307858> **New website has been reported**\n\nDomain: *{site_dict.get('domain')}*\nReason: *{site_dict.get('reason')}*"
+        },
+      )
     else:
       raise HTTPException(409, "Report already exists")
   else:
     raise HTTPException(400, "Invalid captcha")
 
+
 @app.get("/stats")
 async def get_stats():
   sites = site_entities(sites_collection.find())
   reports = site_entities(reports_collection.find())
-  return {
-    "sites": len(list(sites)),
-    "reports": len(list(reports))
-  }
+  return {"sites": len(list(sites)), "reports": len(list(reports))}

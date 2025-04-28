@@ -1,0 +1,18 @@
+[project]
+name = "stopmalwarecontent-api"
+version = "2.1.0"
+description = "API for StopMalwareContent Extension."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "authx>=1.4.2",
+    "fastapi[standard]>=0.115.12",
+    "highlight-io>=0.10.1",
+    "pymongo>=4.12.0",
+    "python-dotenv>=1.1.0",
+    "requests>=2.32.3",
+    "ruff>=0.11.6",
+]
+
+[tool.ruff]
+indent-width = 2

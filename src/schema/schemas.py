@@ -4,7 +4,7 @@ def site_entity(site) -> dict:
     "domain": site["domain"],
     "notes": site["notes"],
     "path": site["path"],
-    "reason": site["reason"]
+    "reason": site["reason"],
   }
 
 
