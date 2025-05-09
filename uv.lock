@@ -43,6 +43,23 @@ wheels = [
 ]
 
 [[package]]
+name = "api-analytics"
+version = "1.2.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cd/c2/8982e5c6da1597653a4ad435747975d30fcb5ef2492251a24f84815cbd18/api_analytics-1.2.6.tar.gz", hash = "sha256:cf016d91ea933bb17e57727d97013eb03c42ee813dd1ac5186b62bdf5e7ea064", size = 14624 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/f0/d3b1509f631a50c6f42376e41611206a9427a9139979109bffc3b578f014/api_analytics-1.2.6-py3-none-any.whl", hash = "sha256:25f2fb7b814cae024e7462bc8993fafafe02528c2d0161d9001ca6458702e61c", size = 13872 },
+]
+
+[package.optional-dependencies]
+fastapi = [
+    { name = "fastapi" },
+]
+
+[[package]]
 name = "asgiref"
 version = "3.8.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1654,6 +1671,7 @@ name = "stopmalwarecontent-api"
 version = "2.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "api-analytics", extra = ["fastapi"] },
     { name = "authx" },
     { name = "fastapi", extra = ["standard"] },
     { name = "highlight-io" },
@@ -1665,6 +1683,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "api-analytics", extras = ["fastapi"], specifier = ">=1.2.6" },
     { name = "authx", specifier = ">=1.4.2" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.12" },
     { name = "highlight-io", specifier = ">=0.10.1" },

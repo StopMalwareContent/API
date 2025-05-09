@@ -5,6 +5,7 @@ description = "API for StopMalwareContent Extension."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "api-analytics[fastapi]>=1.2.6",
     "authx>=1.4.2",
     "fastapi[standard]>=0.115.12",
     "highlight-io>=0.10.1",

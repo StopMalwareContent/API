@@ -10,6 +10,7 @@ from models.site import IllegalSite, ReportedIllegalSite
 from config.database import sites_collection, reports_collection
 from schema.schemas import site_entities
 from highlight_io.integrations.fastapi import FastAPIMiddleware
+from api_analytics.fastapi import Analytics
 
 app = FastAPI(
   title="StopMalwareContent API",
@@ -33,6 +34,7 @@ app.add_middleware(
   allow_headers=["*"],
 )
 app.add_middleware(FastAPIMiddleware)
+app.add_middleware(Analytics, api_key=env.ANALYTICS_API_KEY)
 
 config = AuthXConfig(
   JWT_ALGORITHM="HS256",
