@@ -1,5 +1,5 @@
 > [!IMPORTANT]  
-> We do not have enough funds to continue supporting this project, which means that updates are suspended indefinitely. [View API Shutdown Notice](https://stopmalwarecontent.lodine.xyz/blog/15-06-25-project-status).
+> **This repository is no longer maintained. All future development is now in the [monorepo](https://github.com/StopMalwareContent/Code).**
 
 # StopMalwareContent - API
 
